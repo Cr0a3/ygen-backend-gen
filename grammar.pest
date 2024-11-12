@@ -1,0 +1,29 @@
+// tablegen grammar definition
+
+// The top-level rule for parsing patterns
+patterns = { SOI ~ pattern }
+
+// A pattern starts with `def Pat<` and contains a list of inputs and optionally an output
+pattern = { "def Pat<" ~ mnemonic ~ inputs ~ optional_output ~ ">" ~ block }
+
+// The mnemonic, in this case `Add`, followed by one or more input types (gr, imm, mem)
+mnemonic = @{ ASCII_ALPHANUMERIC+ }
+
+// Inputs and output
+inputs = { (","? ~ input )* }
+
+input = @{ "gr" | "imm" | "mem" }
+
+// The optional output follows the `->` symbol
+optional_output = { "->" ~ input }
+
+block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* }
+
+// An asm instruction starts with `asm ->`
+asm_instruction = { "asm ->" ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" ~ !NEWLINE)* }
+
+node_var = @{ "$" ~ ("out" | "1" | "2")}
+
+rust_instruction = { "rust ->" ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | "=" | "{" ~ !NEWLINE)*}
+
+WHITESPACE = _{" " | "\t" | "\n" | "\t" | "\r"}

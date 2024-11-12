@@ -1,0 +1,9 @@
+[package]
+name = "ytbgen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+codegen = { git = "https://github.com/carllerche/codegen.git", version = "0.1.3" }
+pest = "2.7.14"
+pest_derive = "2.7.14"
