@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use codegen::Scope;
 
 use crate::{ast, AsmLine};
@@ -16,23 +18,28 @@ impl CodeEmitter {
         .arg("node", "DagNode")
         .line("match node {");
     
+        let mut funcs_in_match = Vec::new();
+
         for pattern in &self.patterns {
-            let compile_fn = format!("compile_{}", pattern.variant.mnemonic);
-            let line = format!("  {} => {}(asm, node),", pattern.variant.mnemonic, compile_fn);
-            general_func.line(line);
+            if !funcs_in_match.contains(&pattern.variant.mnemonic) {
+                let compile_fn = format!("compile_{}", pattern.variant.mnemonic);
+                let line = format!("  {} => {}(asm, node),", pattern.variant.mnemonic, compile_fn);
+                general_func.line(line);
+
+                funcs_in_match.push(pattern.variant.mnemonic.to_owned());
+            }
         }
         
         general_func.line("  unimplemented => todo!(\"{:?}\", node),")
             .line("}");
 
+        let mut funcs: HashMap<String, Vec<String>> = HashMap::new();
+
         for pattern in &self.patterns {
             let compile_fn = format!("compile_{}", pattern.variant.mnemonic);
-        
-            let compile_fn = scope.new_fn(&compile_fn);
-
-            compile_fn.arg("asm", "&mut Vec<McInstr>");
-            compile_fn.arg("node", "DagNode");
     
+            let mut lines = Vec::new();
+
             // conds
     
             let mut close = 0;
@@ -48,32 +55,48 @@ impl CodeEmitter {
             };
     
             if let Some(ls) = pattern.variant.ls {
-                compile_fn.line(format!("{}if node.is_ls_{}() {{", construct_tabs(close), ls));
+                lines.push(format!("{}if node.is_ls_{}() {{", construct_tabs(close), ls));
                 close += 1;
             }
     
             if let Some(rs) = pattern.variant.rs {
-                compile_fn.line(format!("{}if node.is_rs_{}() {{", construct_tabs(close), rs));
+                lines.push(format!("{}if node.is_rs_{}() {{", construct_tabs(close), rs));
                 close += 1;
             }
     
             for line in &pattern.lines {
                 if let AsmLine::Asm(line) = line {
-                    compile_fn.line(format!("{}asm.push({});", construct_tabs(close), construct_assembly_build(target, line.replace("\n", ""))));
+                    lines.push(format!("{}asm.push({});", construct_tabs(close), construct_assembly_build(target, line.replace("\n", ""))));
                 }
                 if let AsmLine::Rust(line) = line {
-                    compile_fn.line(line);
+                    lines.push(line.to_owned());
                 }
             }
     
-            compile_fn.line(format!("{}return;", construct_tabs(close)));
+            lines.push(format!("{}return;", construct_tabs(close)));
     
             let close_clone = close;
     
             for _ in 0..close_clone {
                 close -= 1;
-                compile_fn.line(format!("{}}}", construct_tabs(close)));
+                lines.push(format!("{}}}", construct_tabs(close)));
             }
+
+            if let Some(func) = funcs.get_mut(&compile_fn) {
+                func.extend_from_slice(&lines);
+            } else {
+                funcs.insert(compile_fn, lines);
+            }
+        }
+
+        for (name, lines) in &funcs {
+            let func = scope.new_fn(name)
+            .arg("asm", "&mut Vec<Asm>")
+            .arg("node", "DagNode");
+            for line in lines {
+                func.line(line);
+            }
+            func.line("todo!(\"not yet compilable variant: {}\", node)");
         }
 
         scope.to_string()
