@@ -9,4 +9,5 @@ def Pat<Add gr, gr -> gr> {
 def Pat<Add gr, imm -> gr> {
     asm -> mov $out, $2;
     asm -> add $out, $1;
+    asm -> mov $out, X64Operand::Test;
 }

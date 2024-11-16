@@ -20,7 +20,7 @@ optional_output = { "->" ~ input }
 block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
 
 // An asm instruction starts with `asm ->`
-asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | " ")* ~ ";" }
+asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }
 
 node_var = @{ "$" ~ ("out" | "1" | "2")}
 
