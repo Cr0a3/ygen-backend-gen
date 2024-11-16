@@ -4,7 +4,7 @@
 patterns = { SOI ~ (pattern)* ~ EOI}
 
 // A pattern starts with `def Pat<` and contains a list of inputs and optionally an output
-pattern = { "def Pat<" ~ mnemonic ~ inputs ~ optional_output ~ ">" ~ block }
+pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ block }
 
 // The mnemonic, in this case `Add`, followed by one or more input types (gr, imm, mem)
 mnemonic = @{ ASCII_ALPHANUMERIC+ }

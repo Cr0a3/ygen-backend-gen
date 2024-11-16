@@ -83,19 +83,23 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                 match inner_pair.as_rule() {
                     Rule::mnemonic => pattern.variant.mnemonic = inner_pair.as_str().to_string(),
                     Rule::inputs => {
+                        if inner_pair.as_str().is_empty() { continue; }
+
                         let inputs = inner_pair.as_str().split(", ").map(|x| x.to_owned()).collect::<Vec<String>>();
 
                         if let Some(input) = inputs.get(0) {
-                            pattern.variant.ls = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant: {}", input)))
+                            pattern.variant.ls = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant for ls: {}", input)))
                         }
 
                         if let Some(input) = inputs.get(1) {
-                            pattern.variant.rs = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant: {}", input)))
+                            pattern.variant.rs = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant for rs: {}", input)))
                         }
                     },
                     Rule::optional_output => {
+                        if inner_pair.as_str().is_empty() { continue; }
+                        
                         let input = inner_pair.as_str().replace("->", "").replace(" ", "");
-                        let out = OpVariant::from_str(&input).expect(&format!("invalid opvariant: {}", input));
+                        let out = OpVariant::from_str(&input).expect(&format!("invalid opvariant for out: {}", input));
 
                         pattern.variant.out = Some(out);
                     },
