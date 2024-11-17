@@ -26,11 +26,13 @@ pub struct Variant {
     pub ls: Option<OpVariant>,
     pub rs: Option<OpVariant>,
     pub out: Option<OpVariant>,
+    pub ty: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpVariant {
     Gr,
+    Fp,
     Imm,
     Mem
 }
@@ -41,6 +43,7 @@ impl FromStr for OpVariant {
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
             "gr" => Ok(OpVariant::Gr),
+            "fp" => Ok(OpVariant::Fp),
             "imm" => Ok(OpVariant::Imm),
             "mem" => Ok(OpVariant::Mem),
             _ => Err(()),
@@ -54,6 +57,7 @@ impl Display for OpVariant {
             OpVariant::Gr => "gr",
             OpVariant::Imm => "imm",
             OpVariant::Mem => "mem",
+            OpVariant::Fp => "fp",
         })
     }
 }
@@ -74,7 +78,8 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     mnemonic: String::new(), 
                     ls: None, 
                     rs: None, 
-                    out: None 
+                    out: None,
+                    ty: None,
                 },
                 lines: Vec::new(),
             };
@@ -95,6 +100,12 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                             pattern.variant.rs = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant for rs: {}", input)))
                         }
                     },
+                    Rule::optional_ty => {
+                        if inner_pair.as_str().is_empty() { continue; }
+                        let input = inner_pair.as_str().replace("(", "").replace(")", "").replace(" ", "");
+                    
+                        pattern.variant.ty = Some(input);
+                    }
                     Rule::optional_output => {
                         if inner_pair.as_str().is_empty() { continue; }
                         

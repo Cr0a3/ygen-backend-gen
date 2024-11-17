@@ -64,7 +64,18 @@ impl CodeEmitter {
                 lines.push(format!("{}if node.is_op_{}(1) {{", construct_tabs(close), rs));
                 close += 1;
             }
-    
+
+            if let Some(ty) = &pattern.variant.ty {
+                match ty.as_str() {
+                    "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
+                    "unsigned" => lines.push(format!("{}if !node.get_ty().signed()) {{", construct_tabs(close))),
+                    "float" => lines.push(format!("{}if node.get_ty().float()) {{", construct_tabs(close))),
+                    "no_float" => lines.push(format!("{}if !node.get_ty().float()) {{", construct_tabs(close))),
+                    _ => lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::{}) {{", construct_tabs(close), ty)),
+                }
+                close += 1; 
+            }
+            
             for line in &pattern.lines {
                 if let AsmLine::Asm(line) = line {
                     lines.push(format!("{}asm.push({});", construct_tabs(close), construct_assembly_build(target, line.replace("\n", ""))));
