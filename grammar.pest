@@ -14,7 +14,7 @@ inputs = { (","? ~ input )* }
 
 input = @{ "gr" | "fp" | "imm" | "mem" }
 
-optional_ty = @{ ASCII_ALPHANUMERIC+ }
+optional_ty = { (!"map" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
 optional_maps = { map+ }
 map = { "map" ~ temporary ~ "," ~ input }
 

@@ -71,12 +71,25 @@ impl CodeEmitter {
             }
 
             if let Some(ty) = &pattern.variant.ty {
-                match ty.as_str() {
-                    "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
-                    "unsigned" => lines.push(format!("{}if !node.get_ty().signed()) {{", construct_tabs(close))),
-                    "float" => lines.push(format!("{}if node.get_ty().float()) {{", construct_tabs(close))),
-                    "no_float" => lines.push(format!("{}if !node.get_ty().float()) {{", construct_tabs(close))),
-                    _ => lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::{}) {{", construct_tabs(close), ty)),
+                if ty.contains("<") && ty.contains(">") {
+                    // vector type
+
+                    let ty = ty.replace(">", "").replace("<", "");
+
+                    let ty = ty.split("x").collect::<Vec<&str>>();
+
+                    let size = ty.get(0).expect("expected size for vector types");
+                    let ty = ty.get(1).expect("expected type");
+
+                    lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}})) {{", construct_tabs(close)));
+                } else {
+                    match ty.as_str() {
+                        "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
+                        "unsigned" => lines.push(format!("{}if !node.get_ty().signed()) {{", construct_tabs(close))),
+                        "float" => lines.push(format!("{}if node.get_ty().float()) {{", construct_tabs(close))),
+                        "no_float" => lines.push(format!("{}if !node.get_ty().float()) {{", construct_tabs(close))),
+                        _ => lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::{}) {{", construct_tabs(close), ty)),
+                    }
                 }
                 close += 1; 
             }
@@ -113,7 +126,7 @@ impl CodeEmitter {
             for line in lines {
                 func.line(line);
             }
-            func.line("todo!(\"not yet compilable variant: {}\", node)");
+            func.line("todo!(\"not yet compilable variant: {} ({})\", node, node.get_ty())");
         }
 
         // now handle the temporarys
@@ -141,12 +154,25 @@ impl CodeEmitter {
         }
         
         if let Some(ty) = &pat.variant.ty {
-            match ty.as_str() {
-                "signed" => cond.push_str(" && node.get_ty().signed())"),
-                "unsigned" => cond.push_str(" && !node.get_ty().signed())"),
-                "float" => cond.push_str(" && node.get_ty().float())"),
-                "no_float" => cond.push_str(" && !node.get_ty().float())"),
-                _ => cond.push_str(&format!(" && node.is_ty(crate::IR::TypeMetadata::{})",  ty)),
+            if ty.contains("<") && ty.contains(">") {
+                // vector type
+
+                let ty = ty.replace(">", "").replace("<", "");
+
+                let ty = ty.split("x").collect::<Vec<&str>>();
+
+                let size = ty.get(0).expect("expected size for vector types");
+                let ty = ty.get(1).expect("expected type");
+
+                cond.push_str(&format!("&& node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}}))"));
+            } else {
+                match ty.as_str() {
+                    "signed" => cond.push_str(" && node.get_ty().signed())"),
+                    "unsigned" => cond.push_str(" && !node.get_ty().signed())"),
+                    "float" => cond.push_str(" && node.get_ty().float())"),
+                    "no_float" => cond.push_str(" && !node.get_ty().float())"),
+                    _ => cond.push_str(&format!(" && node.is_ty(crate::IR::TypeMetadata::{})",  ty)),
+                }
             }
         }
 
