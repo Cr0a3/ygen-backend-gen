@@ -12,6 +12,13 @@ pub struct File {
 pub struct Pattern {
     pub variant: Variant,
     pub lines: Vec<AsmLine>,
+    pub maps: Vec<Map>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Map {
+    pub var: String,
+    pub ty: OpVariant, 
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +88,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     out: None,
                     ty: None,
                 },
+                maps: Vec::new(),
                 lines: Vec::new(),
             };
             
@@ -115,6 +123,21 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                         pattern.variant.out = Some(out);
                     },
                     Rule::block => process_block(&mut pattern, inner_pair),
+                    Rule::map => {
+                        let map = inner_pair.into_inner().as_str();
+                        let map = map.replace(" ", "");
+
+                        let map_parts = map.split(",").collect::<Vec<&str>>();
+                        let tmp_name = map_parts[0];
+                        let tmp_ty = OpVariant::from_str(map_parts[1]).expect("expected valid opvariant");
+
+                        let map = Map {
+                            var: tmp_name.to_string(),
+                            ty: tmp_ty,
+                        };
+
+                        pattern.maps.push( map );
+                    },
                     unhandled => todo!("{:?}", unhandled)
                 }
             }

@@ -4,7 +4,7 @@
 patterns = { SOI ~ (pattern)* ~ EOI}
 
 // A pattern starts with `def Pat<` and contains a list of inputs and optionally an output
-pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ block }
+pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ map+? ~ block }
 
 // The mnemonic, in this case `Add`, followed by one or more input types (gr, imm, mem)
 mnemonic = @{ ASCII_ALPHANUMERIC+ }
@@ -15,6 +15,8 @@ inputs = { (","? ~ input )* }
 input = @{ "gr" | "fp" | "imm" | "mem" }
 
 optional_ty = @{ ASCII_ALPHANUMERIC+ }
+optional_maps = { map+ }
+map = { "map" ~ temporary ~ "," ~ input }
 
 // The optional output follows the `->` symbol
 optional_output = { "->" ~ input }
@@ -22,9 +24,10 @@ optional_output = { "->" ~ input }
 block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
 
 // An asm instruction starts with `asm ->`
-asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }
+asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | temporary | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }
 
 node_var = @{ "$" ~ ("out" | "1" | "2")}
+temporary = @{ "%t" ~ ("0" | "1" | "2")}
 
 rust_instruction = { "rust" ~ "->" ~ (!NEWLINE ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | "=" | "{" | "}" | " "))* }
 

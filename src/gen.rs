@@ -65,6 +65,11 @@ impl CodeEmitter {
                 close += 1;
             }
 
+            if let Some(out) = pattern.variant.out {
+                lines.push(format!("{} if node.is_out_{out}() {{", construct_tabs(close)));
+                close += 1;
+            }
+
             if let Some(ty) = &pattern.variant.ty {
                 match ty.as_str() {
                     "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
@@ -111,10 +116,75 @@ impl CodeEmitter {
             func.line("todo!(\"not yet compilable variant: {}\", node)");
         }
 
+        // now handle the temporarys
+        self.gen_tmps(&mut scope, target);
+
         let code = scope.to_string();
         let code = code.replace("fn", "pub fn"); // make all functions public
 
         format!("#[allow(warnings)]\n{code}")
+    }
+
+    fn construct_cond(&self, pat: &ast::Pattern) -> String {
+        let mut cond = String::new();
+
+        cond.push_str(&format!("node.get_opcode() == DagOpCode::{}", pat.variant.mnemonic));
+
+        if let Some(ls) = pat.variant.ls {
+            cond.push_str(&format!(" && node.is_op_{ls}(0)"));
+        }
+        if let Some(rs) = pat.variant.rs {
+            cond.push_str(&format!(" && node.is_op_{rs}(1)"));
+        }
+        if let Some(out) = pat.variant.out {
+            cond.push_str(&format!(" && node.is_out_{out}()"));
+        }
+        
+        if let Some(ty) = &pat.variant.ty {
+            match ty.as_str() {
+                "signed" => cond.push_str(" && node.get_ty().signed())"),
+                "unsigned" => cond.push_str(" && !node.get_ty().signed())"),
+                "float" => cond.push_str(" && node.get_ty().float())"),
+                "no_float" => cond.push_str(" && !node.get_ty().float())"),
+                _ => cond.push_str(&format!(" && node.is_ty(crate::IR::TypeMetadata::{})",  ty)),
+            }
+        }
+
+        cond
+    }
+
+    fn gen_tmps(&self, scope: &mut Scope, _target: ast::AstTarget) {
+        let tmp_req_func = scope.new_fn("tmps")
+            .arg("node", "&dag::DagNode")
+            .ret("Vec<dag::DagTmpInfo>");
+
+        for pat in &self.patterns {
+            if pat.maps.len() == 0 { continue; }
+
+            tmp_req_func.line(format!("if {} {{", self.construct_cond(&pat)));
+
+            tmp_req_func.line("\tlet mut tmps = Vec::new();");
+
+            for tmp in &pat.maps {
+                let num = tmp.var.replace("%t", "");
+
+                tmp_req_func.line(format!("\tlet mut tmp = dag::DagTmpInfo::new({num}, node.get_ty());"));
+
+                let func = match tmp.ty {
+                    ast::OpVariant::Gr => "tmp.require_gr()",
+                    ast::OpVariant::Fp => "tmp.require_fp()",
+                    ast::OpVariant::Mem => "tmp.require_mem()",
+                    ast::OpVariant::Imm => panic!("tmps cannot have imm as their type"),
+                };
+
+                tmp_req_func.line(format!("\t{func};"));
+                tmp_req_func.line("\ttmps.push(tmp);");
+
+            }
+            tmp_req_func.line("\treturn tmps;");
+            tmp_req_func.line("\t}");
+        }
+        tmp_req_func.line("Vec::new()");
     }
 }
 
@@ -151,6 +221,10 @@ fn construct_assembly_build(target: ast::AstTarget, line: String) -> String {
     let arg_string = arg_string.replace("$out", "node.get_out().into()");
     let arg_string = arg_string.replace("$1", "node.get_op(0).into()");
     let arg_string = arg_string.replace("$2", "node.get_op(1).into()");
+    
+    let arg_string = arg_string.replace("%t0", "Operand::Tmp(0)");
+    let arg_string = arg_string.replace("%t1", "Operand::Tmp(1)");
+    let arg_string = arg_string.replace("%t2", "Operand::Tmp(2)");
     
     builder.push_str(&format!("with{num_args}"));
     builder.push('(');
