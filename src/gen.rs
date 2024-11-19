@@ -56,18 +56,24 @@ impl CodeEmitter {
             };
     
             if let Some(ls) = pattern.variant.ls {
-                lines.push(format!("{}if node.is_op_{}(0) {{", construct_tabs(close), ls));
-                close += 1;
+                if ls != ast::OpVariant::Any {
+                    lines.push(format!("{}if node.is_op_{}(0) {{", construct_tabs(close), ls));
+                    close += 1;
+                }
             }
     
             if let Some(rs) = pattern.variant.rs {
-                lines.push(format!("{}if node.is_op_{}(1) {{", construct_tabs(close), rs));
-                close += 1;
+                if rs != ast::OpVariant::Any {
+                    lines.push(format!("{}if node.is_op_{}(1) {{", construct_tabs(close), rs));
+                    close += 1;
+                }
             }
 
             if let Some(out) = pattern.variant.out {
-                lines.push(format!("{} if node.is_out_{out}() {{", construct_tabs(close)));
-                close += 1;
+                if out != ast::OpVariant::Any {
+                    lines.push(format!("{} if node.is_out_{out}() {{", construct_tabs(close)));
+                    close += 1;
+                }
             }
 
             if let Some(ty) = &pattern.variant.ty {
@@ -84,6 +90,7 @@ impl CodeEmitter {
                     lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}})) {{", construct_tabs(close)));
                 } else {
                     match ty.as_str() {
+                        "int" => lines.push(format!("{}if node.get_ty().intenger()) {{", construct_tabs(close))),
                         "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
                         "unsigned" => lines.push(format!("{}if !node.get_ty().signed()) {{", construct_tabs(close))),
                         "float" => lines.push(format!("{}if node.get_ty().float()) {{", construct_tabs(close))),
@@ -144,13 +151,19 @@ impl CodeEmitter {
         cond.push_str(&format!("node.get_opcode() == DagOpCode::{}", pat.variant.mnemonic));
 
         if let Some(ls) = pat.variant.ls {
-            cond.push_str(&format!(" && node.is_op_{ls}(0)"));
+            if ls != ast::OpVariant::Any {
+                cond.push_str(&format!(" && node.is_op_{ls}(0)"));
+            }
         }
         if let Some(rs) = pat.variant.rs {
-            cond.push_str(&format!(" && node.is_op_{rs}(1)"));
+            if rs != ast::OpVariant::Any {
+                cond.push_str(&format!(" && node.is_op_{rs}(1)"));
+            }
         }
         if let Some(out) = pat.variant.out {
-            cond.push_str(&format!(" && node.is_out_{out}()"));
+            if out != ast::OpVariant::Any {
+                cond.push_str(&format!(" && node.is_out_{out}()"));
+            }
         }
         
         if let Some(ty) = &pat.variant.ty {
@@ -167,6 +180,7 @@ impl CodeEmitter {
                 cond.push_str(&format!("&& node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}}))"));
             } else {
                 match ty.as_str() {
+                    "int" => cond.push_str(" && node.get_ty().intenger())"),
                     "signed" => cond.push_str(" && node.get_ty().signed())"),
                     "unsigned" => cond.push_str(" && !node.get_ty().signed())"),
                     "float" => cond.push_str(" && node.get_ty().float())"),
@@ -201,6 +215,7 @@ impl CodeEmitter {
                     ast::OpVariant::Fp => "tmp.require_fp()",
                     ast::OpVariant::Mem => "tmp.require_mem()",
                     ast::OpVariant::Imm => panic!("tmps cannot have imm as their type"),
+                    ast::OpVariant::Any => panic!("tmporarys cannot have any type"),
                 };
 
                 tmp_req_func.line(format!("\t{func};"));

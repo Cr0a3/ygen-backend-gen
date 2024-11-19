@@ -41,7 +41,8 @@ pub enum OpVariant {
     Gr,
     Fp,
     Imm,
-    Mem
+    Mem,
+    Any,
 }
 
 impl FromStr for OpVariant {
@@ -53,6 +54,7 @@ impl FromStr for OpVariant {
             "fp" => Ok(OpVariant::Fp),
             "imm" => Ok(OpVariant::Imm),
             "mem" => Ok(OpVariant::Mem),
+            ".." => Ok(OpVariant::Any),
             _ => Err(()),
         }
     }
@@ -65,6 +67,7 @@ impl Display for OpVariant {
             OpVariant::Imm => "imm",
             OpVariant::Mem => "mem",
             OpVariant::Fp => "fp",
+            OpVariant::Any => "..",
         })
     }
 }

@@ -12,7 +12,7 @@ mnemonic = @{ ASCII_ALPHANUMERIC+ }
 // Inputs and output
 inputs = { (","? ~ input )* }
 
-input = @{ "gr" | "fp" | "imm" | "mem" }
+input = @{ "gr" | "fp" | "imm" | "mem" | ".."}
 
 optional_ty = { (!"map" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
 optional_maps = { map+ }
