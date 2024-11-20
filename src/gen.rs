@@ -90,11 +90,11 @@ impl CodeEmitter {
                     lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}})) {{", construct_tabs(close)));
                 } else {
                     match ty.as_str() {
-                        "int" => lines.push(format!("{}if node.get_ty().intenger()) {{", construct_tabs(close))),
-                        "signed" => lines.push(format!("{}if node.get_ty().signed()) {{", construct_tabs(close))),
-                        "unsigned" => lines.push(format!("{}if !node.get_ty().signed()) {{", construct_tabs(close))),
-                        "float" => lines.push(format!("{}if node.get_ty().float()) {{", construct_tabs(close))),
-                        "no_float" => lines.push(format!("{}if !node.get_ty().float()) {{", construct_tabs(close))),
+                        "int" => lines.push(format!("{}if node.get_ty().intenger() {{", construct_tabs(close))),
+                        "signed" => lines.push(format!("{}if node.get_ty().signed() {{", construct_tabs(close))),
+                        "unsigned" => lines.push(format!("{}if !node.get_ty().signed() {{", construct_tabs(close))),
+                        "float" => lines.push(format!("{}if node.get_ty().float() {{", construct_tabs(close))),
+                        "no_float" => lines.push(format!("{}if !node.get_ty().float() {{", construct_tabs(close))),
                         _ => lines.push(format!("{}if node.is_ty(crate::IR::TypeMetadata::{}) {{", construct_tabs(close), ty)),
                     }
                 }
@@ -180,11 +180,11 @@ impl CodeEmitter {
                 cond.push_str(&format!("&& node.is_ty(crate::IR::TypeMetadata::Vector(crate::IR::VecTy {{ size: {size}, ty: crate::IR::StdTypeMetadata::{ty}}}))"));
             } else {
                 match ty.as_str() {
-                    "int" => cond.push_str(" && node.get_ty().intenger())"),
-                    "signed" => cond.push_str(" && node.get_ty().signed())"),
-                    "unsigned" => cond.push_str(" && !node.get_ty().signed())"),
-                    "float" => cond.push_str(" && node.get_ty().float())"),
-                    "no_float" => cond.push_str(" && !node.get_ty().float())"),
+                    "int" => cond.push_str(" && node.get_ty().intenger()"),
+                    "signed" => cond.push_str(" && node.get_ty().signed()"),
+                    "unsigned" => cond.push_str(" && !node.get_ty().signed()"),
+                    "float" => cond.push_str(" && node.get_ty().float()"),
+                    "no_float" => cond.push_str(" && !node.get_ty().float()"),
                     _ => cond.push_str(&format!(" && node.is_ty(crate::IR::TypeMetadata::{})",  ty)),
                 }
             }
