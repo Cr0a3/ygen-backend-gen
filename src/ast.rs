@@ -13,6 +13,7 @@ pub struct Pattern {
     pub variant: Variant,
     pub lines: Vec<AsmLine>,
     pub maps: Vec<Map>,
+    pub hook: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +94,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                 },
                 maps: Vec::new(),
                 lines: Vec::new(),
+                hook: None,
             };
             
             for inner_pair in pair.into_inner() {
@@ -141,6 +143,17 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
 
                         pattern.maps.push( map );
                     },
+                    Rule::hook => {
+                        let hook = inner_pair.as_str();
+                        let hook = hook.replace("hook", "");
+                        let hook = hook.replace(" ", "");
+
+                        if pattern.hook.is_some() {
+                            panic!("currently you can only have one hook");
+                        }
+
+                        pattern.hook = Some(hook);
+                    }
                     unhandled => todo!("{:?}", unhandled)
                 }
             }

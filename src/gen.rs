@@ -23,7 +23,7 @@ impl CodeEmitter {
 
         for pattern in &self.patterns {
             if !funcs_in_match.contains(&pattern.variant.mnemonic) {
-                let compile_fn = format!("compile_{}", pattern.variant.mnemonic);
+                let compile_fn = format!("compile_{}", pattern.variant.mnemonic.replace("(_)", ""));
                 let line = format!("  DagOpCode::{} => {}(asm, node),", pattern.variant.mnemonic, compile_fn);
                 general_func.line(line);
 
@@ -37,7 +37,7 @@ impl CodeEmitter {
         let mut funcs: HashMap<String, Vec<String>> = HashMap::new();
 
         for pattern in &self.patterns {
-            let compile_fn = format!("compile_{}", pattern.variant.mnemonic);
+            let compile_fn = format!("compile_{}", pattern.variant.mnemonic.replace("(_)", ""));
     
             let mut lines = Vec::new();
 
@@ -101,6 +101,10 @@ impl CodeEmitter {
                 close += 1; 
             }
             
+            if let Some(hook) = &pattern.hook {
+                lines.push(format!("{}{hook}(asm, node);", construct_tabs(close)))
+            }
+
             for line in &pattern.lines {
                 if let AsmLine::Asm(line) = line {
                     lines.push(format!("{}asm.push({});", construct_tabs(close), construct_assembly_build(target, line.replace("\n", ""))));

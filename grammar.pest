@@ -1,34 +1,23 @@
-// tablegen grammar definition
-
-// The top-level rule for parsing patterns
 patterns = { SOI ~ (pattern)* ~ EOI}
+pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ map+? ~ hook+? ~ block }
 
-// A pattern starts with `def Pat<` and contains a list of inputs and optionally an output
-pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ map+? ~ block }
+mnemonic = @{ (ASCII_ALPHANUMERIC | "(" | "_" | ")" )*}
 
-// The mnemonic, in this case `Add`, followed by one or more input types (gr, imm, mem)
-mnemonic = @{ ASCII_ALPHANUMERIC+ }
-
-// Inputs and output
 inputs = { (","? ~ input )* }
-
 input = @{ "gr" | "fp" | "imm" | "mem" | ".."}
 
-optional_ty = { (!"map" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
-optional_maps = { map+ }
-map = { "map" ~ temporary ~ "," ~ input }
-
-// The optional output follows the `->` symbol
+optional_ty = { (!"map" ~ !"hook" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
 optional_output = { "->" ~ input }
 
-block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
+map = { "map" ~ temporary ~ "," ~ input }
+hook = { "hook" ~ (ASCII_ALPHANUMERIC | "_")* }
 
-// An asm instruction starts with `asm ->`
+
+block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
 asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | temporary | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }
+rust_instruction = { "rust" ~ "->" ~ (!NEWLINE ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | "=" | "{" | "}" | " "))* }
 
 node_var = @{ "$" ~ ("out" | "1" | "2")}
 temporary = @{ "%t" ~ ("0" | "1" | "2")}
-
-rust_instruction = { "rust" ~ "->" ~ (!NEWLINE ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | "=" | "{" | "}" | " "))* }
 
 WHITESPACE = _{" " | "\t" | "\n" | "\t" | "\r"}
