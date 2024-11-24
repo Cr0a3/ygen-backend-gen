@@ -33,6 +33,7 @@ pub struct Variant {
     pub mnemonic: String,
     pub ls: Option<OpVariant>,
     pub rs: Option<OpVariant>,
+    pub op3: Option<OpVariant>,
     pub out: Option<OpVariant>,
     pub ty: Option<String>,
 }
@@ -89,6 +90,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     mnemonic: String::new(), 
                     ls: None, 
                     rs: None, 
+                    op3: None, 
                     out: None,
                     ty: None,
                 },
@@ -111,6 +113,10 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
 
                         if let Some(input) = inputs.get(1) {
                             pattern.variant.rs = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant for rs: {}", input)))
+                        }
+
+                        if let Some(input) = inputs.get(2) {
+                            pattern.variant.op3 = Some(OpVariant::from_str(input).expect(&format!("invalid opvariant for op3: {}", input)))
                         }
                     },
                     Rule::optional_ty => {

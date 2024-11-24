@@ -17,6 +17,7 @@ impl CodeEmitter {
         let general_func = scope.new_fn("compile")
         .arg("asm", asm_vec)
         .arg("node", "DagNode")
+        .arg("module", "&mut crate::IR::Module")
         .line("match node.get_opcode() {");
     
         let mut funcs_in_match = Vec::new();
@@ -24,7 +25,7 @@ impl CodeEmitter {
         for pattern in &self.patterns {
             if !funcs_in_match.contains(&pattern.variant.mnemonic) {
                 let compile_fn = format!("compile_{}", pattern.variant.mnemonic.replace("(_)", ""));
-                let line = format!("  DagOpCode::{} => {}(asm, node),", pattern.variant.mnemonic, compile_fn);
+                let line = format!("  DagOpCode::{} => {}(asm, node, module),", pattern.variant.mnemonic, compile_fn);
                 general_func.line(line);
 
                 funcs_in_match.push(pattern.variant.mnemonic.to_owned());
@@ -69,6 +70,13 @@ impl CodeEmitter {
                 }
             }
 
+            if let Some(op3) = pattern.variant.op3 {
+                if op3 != ast::OpVariant::Any {
+                    lines.push(format!("{}if node.is_op_{}(2) {{", construct_tabs(close), op3));
+                    close += 1;
+                }
+            }
+
             if let Some(out) = pattern.variant.out {
                 if out != ast::OpVariant::Any {
                     lines.push(format!("{} if node.is_out_{out}() {{", construct_tabs(close)));
@@ -105,14 +113,7 @@ impl CodeEmitter {
                 lines.push(format!("{}{hook}(asm, node);", construct_tabs(close)))
             }
 
-            for line in &pattern.lines {
-                if let AsmLine::Asm(line) = line {
-                    lines.push(format!("{}asm.push({});", construct_tabs(close), construct_assembly_build(target, line.replace("\n", ""))));
-                }
-                if let AsmLine::Rust(line) = line {
-                    lines.push(line.to_owned());
-                }
-            }
+            construct_asm(target, &pattern, &mut lines, close, construct_tabs);
     
             lines.push(format!("{}return;", construct_tabs(close)));
     
@@ -133,7 +134,8 @@ impl CodeEmitter {
         for (name, lines) in &funcs {
             let func = scope.new_fn(name)
             .arg("asm", asm_vec)
-            .arg("node", "DagNode");
+            .arg("node", "DagNode")
+            .arg("module", "&mut crate::IR::Module");
             for line in lines {
                 func.line(line);
             }
@@ -152,18 +154,28 @@ impl CodeEmitter {
     fn construct_cond(&self, pat: &ast::Pattern) -> String {
         let mut cond = String::new();
 
-        cond.push_str(&format!("node.get_opcode() == DagOpCode::{}", pat.variant.mnemonic));
+        cond.push_str(&format!("if let DagOpCode::{} = node.get_opcode()  {{", pat.variant.mnemonic));
+
+        cond.push_str("if true ");
 
         if let Some(ls) = pat.variant.ls {
             if ls != ast::OpVariant::Any {
                 cond.push_str(&format!(" && node.is_op_{ls}(0)"));
             }
         }
+
         if let Some(rs) = pat.variant.rs {
             if rs != ast::OpVariant::Any {
                 cond.push_str(&format!(" && node.is_op_{rs}(1)"));
             }
         }
+        
+        if let Some(op3) = pat.variant.op3 {
+            if op3 != ast::OpVariant::Any {
+                cond.push_str(&format!(" && node.is_op_{op3}(2)"));
+            }
+        }
+
         if let Some(out) = pat.variant.out {
             if out != ast::OpVariant::Any {
                 cond.push_str(&format!(" && node.is_out_{out}()"));
@@ -203,11 +215,18 @@ impl CodeEmitter {
             .ret("Vec<dag::DagTmpInfo>");
 
         for pat in &self.patterns {
-            if pat.maps.len() == 0 { continue; }
-
-            tmp_req_func.line(format!("if {} {{", self.construct_cond(&pat)));
+            tmp_req_func.line(format!("{} {{", self.construct_cond(&pat)));
 
             tmp_req_func.line("\tlet mut tmps = Vec::new();");
+
+            if let Some(_) = pat.variant.ls {
+                tmp_req_func.line("\tlet ls_tmps = OperationHandler::new().tmp(&node.get_op(0), 0xF0);");
+                tmp_req_func.line("\ttmps.extend_from_slice(&ls_tmps);");
+            }
+            if let Some(_) = pat.variant.rs {
+                tmp_req_func.line("\tlet ls_tmps = OperationHandler::new().tmp(&node.get_op(1), 0xF1);");
+                tmp_req_func.line("\ttmps.extend_from_slice(&ls_tmps);");
+            }
 
             for tmp in &pat.maps {
                 let num = tmp.var.replace("%t", "");
@@ -227,7 +246,7 @@ impl CodeEmitter {
 
             }
             tmp_req_func.line("\treturn tmps;");
-            tmp_req_func.line("\t}");
+            tmp_req_func.line("}\t}");
         }
         tmp_req_func.line("Vec::new()");
     }
@@ -238,6 +257,85 @@ fn first_to_uppercase(s: &str) -> String {
     match c.next() {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+fn construct_asm(target: ast::AstTarget, pattern: &ast::Pattern, code: &mut Vec<String>, mut close: usize, tabs: fn(usize) -> String) {
+    // construct operand generation code
+
+    if let Some(_ls) = pattern.variant.ls {
+        code.push(format!("{}let ls = {{", tabs(close)));
+        close += 1;
+
+        code.push(format!("{}let mut consta = None;", tabs(close)));
+        code.push(format!("{}if OperationHandler::new().requires_new_const(&node.get_op(0)) {{ consta = Some(OperationHandler::new().create_const(module)) }}", tabs(close)));
+
+        code.push(format!("{}if OperationHandler::new().just_op(&node.get_op(0)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}OperationHandler::new().compile_op(&node.get_op(0), consta.as_ref()).unwrap()", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else if OperationHandler::new().inserts_instrs(&node.get_op(0)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}let Some(instrs) = OperationHandler::new().compile_instrs(&node.get_op(0), consta.as_ref(), DagTmpInfo::new(0xF0, node.get_ty())) else {{ panic!() }};", tabs(close)));
+        code.push(format!("{}asm.extend_from_slice(&instrs);", tabs(close)));
+        code.push(format!("{}Operand::Tmp(0xF0)", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else {{ panic!() }}", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}};", tabs(close)));
+    }
+
+    if let Some(_rs) = pattern.variant.rs {
+        code.push(format!("{}let rs = {{", tabs(close)));
+        close += 1;
+
+        code.push(format!("{}let mut consta = None;", tabs(close)));
+        code.push(format!("{}if OperationHandler::new().requires_new_const(&node.get_op(1)) {{ consta = Some(OperationHandler::new().create_const(module)) }}", tabs(close)));
+
+        code.push(format!("{}if OperationHandler::new().just_op(&node.get_op(1)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}OperationHandler::new().compile_op(&node.get_op(1), consta.as_ref()).unwrap()", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else if OperationHandler::new().inserts_instrs(&node.get_op(1)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}let Some(instrs) = OperationHandler::new().compile_instrs(&node.get_op(1), consta.as_ref(), DagTmpInfo::new(0xF1, node.get_ty())) else {{ panic!() }};", tabs(close)));
+        code.push(format!("{}asm.extend_from_slice(&instrs);", tabs(close)));
+        code.push(format!("{}Operand::Tmp(0xF1)", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else {{ panic!() }}", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}};", tabs(close)));
+    }
+
+    if let Some(_op3) = pattern.variant.op3 {
+        code.push(format!("{}let op3 = {{", tabs(close)));
+        close += 1;
+
+        code.push(format!("{}let mut consta = None;", tabs(close)));
+        code.push(format!("{}if OperationHandler::new().requires_new_const(&node.get_op(2)) {{ consta = Some(OperationHandler::new().create_const(module)) }}", tabs(close)));
+
+        code.push(format!("{}if OperationHandler::new().just_op(&node.get_op(2)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}OperationHandler::new().compile_op(&node.get_op(2), consta.as_ref()).unwrap()", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else if OperationHandler::new().inserts_instrs(&node.get_op(2)) {{", tabs(close)));
+        close += 1;
+        code.push(format!("{}let Some(instrs) = OperationHandler::new().compile_instrs(&node.get_op(2), consta.as_ref(), DagTmpInfo::new(0xF2, node.get_ty())) else {{ panic!() }};", tabs(close)));
+        code.push(format!("{}asm.extend_from_slice(&instrs);", tabs(close)));
+        code.push(format!("{}Operand::Tmp(0xF2)", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}} else {{ panic!() }}", tabs(close)));
+        close -= 1;
+        code.push(format!("{}}};", tabs(close)));
+    }
+
+    // construct assembly build
+
+    for line in &pattern.lines {
+        match line {
+            AsmLine::Rust(rust) => code.push(rust.to_string()),
+            AsmLine::Asm(asm) => code.push(format!("asm.push({});", construct_assembly_build(target, asm.replace("\n", "")))),
+        }
     }
 }
 
@@ -264,12 +362,13 @@ fn construct_assembly_build(target: ast::AstTarget, line: String) -> String {
     arg_string.push(')');
     
     let arg_string = arg_string.replace("$out", "node.get_out().into()");
-    let arg_string = arg_string.replace("$1", "node.get_op(0).into()");
-    let arg_string = arg_string.replace("$2", "node.get_op(1).into()");
+    let arg_string = arg_string.replace("$1", "ls");
+    let arg_string = arg_string.replace("$2", "rs");
+    let arg_string = arg_string.replace("$3", "op3");
     
-    let arg_string = arg_string.replace("%t0", "Operand::Tmp(0)");
-    let arg_string = arg_string.replace("%t1", "Operand::Tmp(1)");
-    let arg_string = arg_string.replace("%t2", "Operand::Tmp(2)");
+    let arg_string = arg_string.replace("%t0", &format!("Operand::Tmp(0)"));
+    let arg_string = arg_string.replace("%t1", &format!("Operand::Tmp(1)"));
+    let arg_string = arg_string.replace("%t2", &format!("Operand::Tmp(2)"));
     
     builder.push_str(&format!("with{num_args}"));
     builder.push('(');

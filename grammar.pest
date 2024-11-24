@@ -17,7 +17,7 @@ block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
 asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | temporary | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }
 rust_instruction = { "rust" ~ "->" ~ (!NEWLINE ~ (ASCII_ALPHANUMERIC+ | node_var | "," | "[" | "+" | "]" | "=" | "{" | "}" | " "))* }
 
-node_var = @{ "$" ~ ("out" | "1" | "2")}
+node_var = @{ "$" ~ ("out" | "1" | "2" | "3")}
 temporary = @{ "%t" ~ ("0" | "1" | "2")}
 
 WHITESPACE = _{" " | "\t" | "\n" | "\t" | "\r"}
