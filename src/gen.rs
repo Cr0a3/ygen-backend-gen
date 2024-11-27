@@ -241,6 +241,8 @@ impl CodeEmitter {
                     ast::OpVariant::Any => panic!("tmporarys cannot have any type"),
                 };
 
+                tmp_req_func.line("\ttmp.size = node.get_ty();");
+
                 tmp_req_func.line(format!("\t{func};"));
                 tmp_req_func.line("\ttmps.push(tmp);");
 
