@@ -1,11 +1,6 @@
-def Pat<Add .., .. -> ..> int 
-    map %t1, gr
+def Pat<Div .., .. -> ..> int 
+    overwrite rcx
+    overwrite rax
 {
-    asm -> mov %t1, $1;
-    asm -> add %t1, $2;
-    asm -> mov $out, %t1;
+    asm -> mov Operand::Reg(Reg::Rcx()), 0;
 }
-
-def Pat<Br(_)> 
-    hook lower_br
-{}

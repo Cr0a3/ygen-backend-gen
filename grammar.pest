@@ -1,17 +1,17 @@
 patterns = { SOI ~ (pattern)* ~ EOI}
-pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ map+? ~ hook+? ~ block }
+pattern = { "def Pat<" ~ mnemonic ~ inputs? ~ optional_output? ~ ">" ~ optional_ty? ~ map+? ~ overwrite+? ~ hook+? ~ block }
 
 mnemonic = @{ (ASCII_ALPHANUMERIC | "(" | "_" | ")" )*}
 
 inputs = { (","? ~ input )* }
 input = @{ "gr" | "fp" | "imm" | "mem" | ".."}
 
-optional_ty = { (!"map" ~ !"hook" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
+optional_ty = { (!"map" ~ !"hook" ~ !"overwrite" ~ (ASCII_ALPHANUMERIC | "<" | ">"))* }
 optional_output = { "->" ~ input }
 
 map = { "map" ~ temporary ~ "," ~ input }
 hook = { "hook" ~ (ASCII_ALPHANUMERIC | "_")* }
-
+overwrite = { "overwrite" ~ ASCII_ALPHANUMERIC+ }
 
 block = { "{" ~ (!"}" ~ asm_instruction | rust_instruction)* ~ "}"}
 asm_instruction = { "asm" ~ "->" ~ (!NEWLINE ~ ASCII_ALPHANUMERIC+ | node_var | temporary | "," | "[" | "+" | "]" | " " | ":" | "(" | ")" )* ~ ";" }

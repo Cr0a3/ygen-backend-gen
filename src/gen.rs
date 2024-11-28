@@ -108,13 +108,14 @@ impl CodeEmitter {
                 }
                 close += 1; 
             }
-            
+
+            construct_asm(target, &pattern, &mut lines, close, construct_tabs);
+    
             if let Some(hook) = &pattern.hook {
                 lines.push(format!("{}{hook}(asm, node);", construct_tabs(close)))
             }
 
-            construct_asm(target, &pattern, &mut lines, close, construct_tabs);
-    
+
             lines.push(format!("{}return;", construct_tabs(close)));
     
             let close_clone = close;
@@ -144,6 +145,9 @@ impl CodeEmitter {
 
         // now handle the temporarys
         self.gen_tmps(&mut scope, target);
+
+        // handle the overwrites
+        self.gen_overwrittes(&mut scope, target);
 
         let code = scope.to_string();
         let code = code.replace("fn", "pub fn"); // make all functions public
@@ -251,6 +255,28 @@ impl CodeEmitter {
             tmp_req_func.line("}\t}");
         }
         tmp_req_func.line("Vec::new()");
+    }
+
+    fn gen_overwrittes(&self, scope: &mut Scope, _target: ast::AstTarget) {
+        let func = scope.new_fn("overwrittes") 
+            .arg("node", "&dag::DagNode")
+            .ret("Vec<Reg>");
+
+        for pat in &self.patterns {
+            if pat.overwrittes.is_empty() { continue; }
+            func.line(format!("{} {{", self.construct_cond(pat)));
+            
+            func.line("\tlet mut overwrittes = Vec::new();");
+            for overwrite in &pat.overwrittes {
+                let overwrite = overwrite.replace("\r", "");
+                func.line(format!("\toverwrittes.push(Reg::{overwrite});"));
+            }
+            func.line("\treturn overwrittes;");
+
+            func.line("}");
+        }
+
+        func.line("Vec::new()");
     }
 }
 

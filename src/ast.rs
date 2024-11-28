@@ -13,6 +13,7 @@ pub struct Pattern {
     pub variant: Variant,
     pub lines: Vec<AsmLine>,
     pub maps: Vec<Map>,
+    pub overwrittes: Vec<String>,
     pub hook: Option<String>,
 }
 
@@ -95,6 +96,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     ty: None,
                 },
                 maps: Vec::new(),
+                overwrittes: Vec::new(),
                 lines: Vec::new(),
                 hook: None,
             };
@@ -160,6 +162,15 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
 
                         pattern.hook = Some(hook);
                     }
+                    Rule::overwrite => {
+                        let overwrite = inner_pair.as_str();
+                        if overwrite.is_empty() { continue; }
+                        
+                        let overwrite = overwrite.replace("overwrite", "");
+                        let overwrite = overwrite.replace(" ", "");
+                        let overwrites = overwrite.split("\n").map(|x| x.to_owned()).collect::<Vec<String>>();
+                        pattern.overwrittes.extend_from_slice(overwrites.as_slice());
+                    },
                     unhandled => todo!("{:?}", unhandled)
                 }
             }
