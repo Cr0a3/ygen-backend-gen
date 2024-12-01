@@ -123,14 +123,14 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     },
                     Rule::optional_ty => {
                         if inner_pair.as_str().is_empty() { continue; }
-                        let input = inner_pair.as_str().replace("(", "").replace(")", "").replace(" ", "");
+                        let input = inner_pair.as_str().replace("(", "").replace(")", "").replace(" ", "").replace(";", "");
                     
                         pattern.variant.ty = Some(input);
                     }
                     Rule::optional_output => {
                         if inner_pair.as_str().is_empty() { continue; }
                         
-                        let input = inner_pair.as_str().replace("->", "").replace(" ", "");
+                        let input = inner_pair.as_str().replace("->", "").replace(" ", "").replace(";", "");
                         let out = OpVariant::from_str(&input).expect(&format!("invalid opvariant for out: {}", input));
 
                         pattern.variant.out = Some(out);
@@ -138,7 +138,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     Rule::block => process_block(&mut pattern, inner_pair),
                     Rule::map => {
                         let map = inner_pair.into_inner().as_str();
-                        let map = map.replace(" ", "");
+                        let map = map.replace(" ", "").replace(";", "");
 
                         let map_parts = map.split(",").collect::<Vec<&str>>();
                         let tmp_name = map_parts[0];
@@ -154,7 +154,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                     Rule::hook => {
                         let hook = inner_pair.as_str();
                         let hook = hook.replace("hook", "");
-                        let hook = hook.replace(" ", "");
+                        let hook = hook.replace(" ", "").replace(";", "");
 
                         if pattern.hook.is_some() {
                             panic!("currently you can only have one hook");
@@ -167,7 +167,7 @@ pub fn process(pair: pest::iterators::Pair<Rule>) -> Pattern {
                         if overwrite.is_empty() { continue; }
                         
                         let overwrite = overwrite.replace("overwrite", "");
-                        let overwrite = overwrite.replace(" ", "");
+                        let overwrite = overwrite.replace(" ", "").replace(";", "");
                         let overwrites = overwrite.split("\n").map(|x| x.to_owned()).collect::<Vec<String>>();
                         pattern.overwrittes.extend_from_slice(overwrites.as_slice());
                     },

@@ -39,6 +39,9 @@ fn main() {
         },
     };
 
+
+    input = input.replace("\r", "");
+
     let patterns = ast::parse(&input);
 
     let emiter = gen::CodeEmitter {

@@ -268,7 +268,6 @@ impl CodeEmitter {
             
             func.line("\tlet mut overwrittes = Vec::new();");
             for overwrite in &pat.overwrittes {
-                let overwrite = overwrite.replace("\r", "");
                 func.line(format!("\toverwrittes.push(Reg::{overwrite}());"));
             }
             func.line("\treturn overwrittes;");
