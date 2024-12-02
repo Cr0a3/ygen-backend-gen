@@ -112,7 +112,7 @@ impl CodeEmitter {
             construct_asm(target, &pattern, &mut lines, close, construct_tabs);
     
             if let Some(hook) = &pattern.hook {
-                lines.push(format!("{}{hook}(asm, node);", construct_tabs(close)))
+                lines.push(format!("{}{hook}(asm, node, module);", construct_tabs(close)))
             }
 
 
